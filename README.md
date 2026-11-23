@@ -1,172 +1,239 @@
-RailSafe CAN: Dual-ECU Smart Railway Level Crossing Gate:
+🚆 RailSafe – Automatic Railway Level Crossing System Using CAN Protocol
 
-An automatic railway level crossing built on two LPC2129 (ARM7) ECUs connected by a CAN bus.
-ECU1 detects the train and shows live status. ECU2 closes the gate, drives the warning lights and
-sounds the buzzer. If CAN communication is lost, the crossing goes to a safe state: gate closed, red
-light on, buzzer on.
+📌 Project Overview
 
-Features:-
-Two-sensor train detection (IR1 entry, IR2 exit) with a train counter, so the gate opens only after
-every train has left
-20 ms software debounce on both IR sensors
-Servo gate that moves in small steps (no sudden swing)
-3 second warning (flashing red light and buzzer) before the gate starts closing
-2 second safety delay after the last train leaves before the gate reopens
-16x2 LCD dashboard: train state, train count, gate state, ECU2 link status
-CAN 2.0A link with 100 ms cyclic messages and an alive counter in every frame
-Fail-safe on communication loss (500 ms timeout) and on an emergency frame
-Transmit timeout in the CAN driver, so a missing node cannot freeze the main loop
+RailSafe is an embedded-based automatic railway level crossing system designed to improve railway crossing safety by automating gate operations using train detection and CAN (Controller Area Network) communication.
 
-System overview:-
-Layer Unit Role
-Detection ECU1 IR1, IR2, LCD dashboard, sends TRAIN_STATUS
-Communication CAN bus Twisted pair, 120 ohm termination at both ends, TJA1050 transceivers
-Action ECU2 Servo gate, red and green LEDs, buzzer, sends GATE_STATUS
+The system consists of two LPC2129 ARM7 microcontrollers (ECUs) that communicate through the CAN protocol.
 
-CAN messages
+ECU1 detects train movement using IR sensors, maintains the train count, and transmits train information to ECU2. ECU2 receives the information and controls the railway gate using a servo motor, red LED, and buzzer.
 
-ID Name Direction DLC Payload
-0x100 TRAIN_STATUS
-ECU1 to
-ECU2
+The system uses CAN communication to provide reliable data exchange between the two controllers.
 
-4
-B0 state (0 clear, 1 approaching, 2 on crossing, 3
-cleared), B1 train count, B2 distance (0), B3 alive
-counter
+🎯 Objectives
 
-0x200 GATE_STATUS
+Automate railway level crossing gate operations.
 
-ECU2 to
-ECU1
+Detect train entry and exit using IR sensors.
 
-4
-B0 gate (0 open, 1 closing, 2 closed, 3 opening), B1
-signal, B2 buzzer, B3 alive counter
+Maintain the number of trains detected.
 
-0x300 EMERGENCY to ECU2 1
+Establish communication between two microcontrollers using CAN protocol.
 
-B0 = 0xFF forces gate closed, red light and buzzer
-on
+Control railway gate operation using a servo motor.
 
-Both frames are sent every 100 ms. ECU2 ignores a TRAIN_STATUS frame whose alive counter has not
-changed.
-Operation
-1. Power-up: gate open, green light on, LCD shows CLEAR.
-2. IR1 triggers: train count goes up, state becomes APPROACHING.
-3. ECU2 flashes the red light and sounds the buzzer. After 3 seconds the servo lowers the gate.
-4. Train on the crossing: gate closed, red light steady.
-5. IR2 triggers: train count goes down. At count 0, after a 2 second wait, ECU1 sends CLEARED.
-6. ECU2 lifts the gate, turns green on and the buzzer off.
-7. Two trains: the gate stays closed until the count returns to 0.
-Fail-safe behaviour
+Provide visual and audio alerts using an LED and buzzer.
 
-Condition Result
-ECU2 gets no valid TRAIN_STATUS for 500 ms Gate closes, red light on, buzzer on
-Emergency frame 0x300 with 0xFF Same safe state, stays latched until reset
-ECU1 gets no GATE_STATUS for 500 ms LCD shows ECU2 LOST , ECU1 keeps sending
-Train count above 0 Gate never opens
+Improve railway crossing safety through embedded automation.
 
-Pin map (as used in the code)
-ECU1
+🏗️ System Architecture
 
-Signal Pin
-IR1 (entry) P1.16
-IR2 (exit) P1.17
-LCD D4 to D7 P0.16 to P0.19
-LCD RS / E P0.5 / P0.6
-CAN2 RD2 / TD2 P0.23 / P0.24
+The project is divided into two main control units:
 
-ECU2
+ECU1 – Train Detection and Monitoring Unit
 
-Signal Pin
-Servo (PWM2) P0.7
-Red LED P1.16
-Green LED P1.17
-Buzzer (active low) P1.18
-CAN2 RD2 / TD2 P0.23 / P0.24
-CAN wiring: CAN-H to CAN-H, CAN-L to CAN-L, common ground. Power the servo from its own 5 V
-supply and join it to the logic supply at ground only.
+Microcontroller: LPC2129 (ARM7)
 
-Hardware
+Components:
 
-Qty Component
-2 LPC2129 ARM7 boards
-2 TJA1050 CAN transceivers
-2 IR obstacle sensor modules
-1 16x2 LCD
-1 SG90 / MG90S servo with gate arm
-1 set Red and green LEDs
-1 Buzzer
+IR Sensor 1 – Train entry detection.
 
-Qty Component
-2 120 ohm resistors (bus termination)
-1 Model track with toy train, 5 V supply with 3.3 V regulator
-Optional: HC-SR04 ultrasonic sensor for approach distance (planned, not in the current firmware).
-Repository structure
-RailSafe-CAN/
-├── README.md
-├── block_diagram.png
-├── ECU1/
-│ ├── ecu1_main.c
-│ ├── header.h CAN message struct, state and ID defines
-│ ├── can_driver.h can2_init, can2_tx, can2_rx
-│ ├── timer0_delay.h delay_milliseconds
-│ ├── timerdelay.h Timer1 init and 1 ms ISR
-│ ├── lcd_header4bit.h LCD driver (4-bit)
-│ ├── titledisplay.h startup banner
-│ ├── ir_check.h IR debounce and train counter
-│ ├── safety.h 2 s safety wait
-│ ├── ecu1_tx.h send TRAIN_STATUS
-│ ├── ecu1_rx.h receive GATE_STATUS
-│ ├── timeout.h communication timeout
-│ ├── lcd_display.h live dashboard
-│ └── Startup.s
-└── ECU2/
-├── ecu2_main.c
-├── header.h
-├── can_driver.h
-├── timer_delay.h Timer0 init and 1 ms ISR
-├── gpio.h LED and buzzer pins
-├── pwm.h PWM2 for the servo
-├── servo_control.h gate open and close
-├── train_status.h decode TRAIN_STATUS and EMERGENCY
-├── signal.h LEDs and buzzer logic
-├── gatestatus.h send GATE_STATUS
-└── Startup.s
-The .h files other than header.h and can_driver.h contain function bodies. They are included by
-ecu*_main.c after the global variables and must not be added to the project as separate source files.
+IR Sensor 2 – Train exit detection.
 
-Build and flash
-1. Open Keil uVision4. Create one project per ECU ( ECU1/ and ECU2/ ) for the LPC2129.
-2. Add Startup.s and the ecu*_main.c file to the project. Do not add the other headers as sources.
-3. Rebuild (F7). Flash the .hex file with Flash Magic.
-4. Connect the CAN bus and power both boards.
+16×2 LCD – Displays train status, train count, and gate status.
 
-Testing
+CAN Controller – Transmits and receives information through CAN communication.
 
-Test Expected result
-Train passes IR1 and IR2 Count goes up at IR1 and down at IR2
-Trigger APPROACHING 3 s warning, then gate reaches closed
-Train passes IR2 Gate reopens after the 2 s safety delay
-Two trains before IR2 Gate stays closed until the count is 0
-Disconnect the CAN wire Gate closes, red and buzzer on within 0.5 s, LCD shows ECU2 LOST
+Responsibilities:
 
-Limitations
-Prototype scale, toy train at short range. Real tracks need track circuits or axle counters.
-IR sensors are affected by sunlight and dirt.
-Single-track layout assumed.
-The ultrasonic sensor is not implemented yet.
+Detects train entry using IR1.
 
-Future work
-Second crossing ECU, station-to-crossing messages, GSM/IoT alerts to a control room, camera or
-radar for vehicles on the crossing, solar backup, CAN FD.
+Detects train exit using IR2.
 
-Tools
-Keil uVision4 (ARM7), Flash Magic, embedded C with register-level LPC21xx drivers.
-References
-Bosch, CAN Specification Version 2.0, 1991
-ISO 11898-1, Road vehicles: Controller Area Network
+Maintains the train count.
 
-NXP LPC2129 datasheet and user manual
-NXP TJA1050 datasheet
+Displays train information on the LCD.
+
+Transmits train status through CAN (Message ID: 0x100) every 100 ms.
+
+Receives gate status information through CAN.
+
+ECU2 – Railway Gate Control Unit
+
+Microcontroller: LPC2129 (ARM7)
+
+Components:
+
+CAN Controller – Receives train information.
+
+Servo Motor – Opens and closes the railway gate.
+
+Red LED – Provides a visual warning.
+
+Buzzer – Provides an audio warning.
+
+Responsibilities:
+
+Receives train information from ECU1 through CAN.
+
+Processes the received train status.
+
+Uses a 3-second safety delay before gate operation.
+
+Controls the servo motor to close or open the railway gate.
+
+Activates the red LED and buzzer during the warning/gate-closed condition.
+
+Communicates gate status back to ECU1.
+
+⚙️ Hardware Components
+
+Component
+
+Purpose
+
+LPC2129 × 2
+
+Main controllers
+
+IR Sensors × 2
+
+Train entry and exit detection
+
+TJA1050 × 2
+
+CAN transceivers
+
+16×2 LCD
+
+Displays train and gate status
+
+Servo Motor
+
+Railway gate control
+
+Red LED
+
+Visual warning
+
+Buzzer
+
+Audio warning
+
+120Ω Resistors
+
+CAN bus termination
+
+Power Supply
+
+Powers the system
+
+🔄 Working Principle
+
+Step 1 – Train Detection
+
+IR1 detects the approaching train and ECU1 updates the train count.
+
+Step 2 – Train Exit Detection
+
+IR2 detects the train leaving the crossing section, and ECU1 updates the train count accordingly.
+
+Step 3 – CAN Communication
+
+ECU1 transmits train status to ECU2 using CAN 2.0A communication at 1 Mbps.
+
+Step 4 – Safety Timing
+
+ECU2 receives the train information and applies the required 3-second safety timing before gate operation.
+
+Step 5 – Gate Control
+
+ECU2 operates the servo motor to control the railway gate. The red LED and buzzer provide warning indications.
+
+Step 6 – Status Monitoring
+
+ECU2 communicates gate status back to ECU1, and the LCD displays the train and gate information.
+
+🔌 Communication Protocol
+
+Parameter
+
+Specification
+
+Protocol
+
+CAN
+
+CAN Version
+
+CAN 2.0A
+
+Data Rate
+
+1 Mbps
+
+Controllers
+
+LPC2129
+
+Transceiver
+
+TJA1050
+
+Termination
+
+120Ω
+
+Train Status Message ID
+
+0x100
+
+Transmission Interval
+
+100 ms
+
+💻 Software and Development Tools
+
+Embedded C
+
+Keil µVision IDE
+
+LPC2129 ARM7 Microcontroller
+
+CAN Protocol
+
+Proteus (Circuit Simulation)
+
+📚 Concepts Implemented
+
+ARM7 Microcontroller Programming
+
+GPIO Interfacing
+
+IR Sensor Interfacing
+
+LCD Interfacing
+
+CAN Protocol Communication
+
+CAN Message Transmission and Reception
+
+Timer and Interrupt Programming
+
+Servo Motor Control
+
+Embedded System Integration
+
+🚀 Expected Outcome
+
+The RailSafe system demonstrates automatic railway crossing control using two embedded controllers communicating over a CAN network.
+
+It integrates train detection, real-time status monitoring, communication between ECUs, and automated gate operation to demonstrate a safety-oriented embedded system.
+
+👩‍💻 Project Category
+
+Domain: Embedded Systems
+Controller: ARM7 LPC2129
+Programming Language: Embedded C
+Communication Protocol: CAN 2.0A
+
