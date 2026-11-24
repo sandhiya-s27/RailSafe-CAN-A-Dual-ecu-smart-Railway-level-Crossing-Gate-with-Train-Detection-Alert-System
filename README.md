@@ -50,6 +50,8 @@ Uses a 3-second safety delay before gate operation.
 Controls the servo motor to close or open the railway gate.
 Activates the red LED and buzzer during the warning/gate-closed condition.
 Communicates gate status back to ECU1.
+
+
 ⚙️ HARDWARE COMPONENTS
 Component
 Purpose
@@ -107,6 +109,8 @@ Train Status Message ID
 0x100
 Transmission Interval
 100 ms
+
+
 💻 SOFTWARE AND DEVELOPMENT TOOLS
 Embedded C
 Keil µVision IDE
@@ -123,12 +127,8 @@ CAN Message Transmission and Reception
 Timer and Interrupt Programming
 Servo Motor Control
 Embedded System Integration
+
 🚀 EXPECTED OUTCOME
 The RailSafe system demonstrates automatic railway crossing control using two embedded controllers communicating over a CAN network.
 It integrates train detection, real-time status monitoring, communication between ECUs, and automated gate operation to demonstrate a safety-oriented embedded system.
-👩‍💻 PROJECT CATEGORY
-Domain: Embedded Systems
-Controller: ARM7 LPC2129
-Programming Language: Embedded C
-Communication Protocol: CAN 2.0A
 
